@@ -1,0 +1,1 @@
+{"name":"bloom-marketing-prototype","version":"0.1.0","private":true,"description":"AI 마케팅 에이전트 로컬 프로토타입","scripts":{"start":"python3 -m http.server 4173 --bind 127.0.0.1","check":"node --check app.js"}}
