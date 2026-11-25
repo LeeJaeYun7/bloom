@@ -1,4 +1,4 @@
 #!/bin/zsh
 cd "${0:A:h}"
-(sleep 1; open http://localhost:4173) &
-python3 -m http.server 4173 --bind 127.0.0.1
+(sleep 1; open http://localhost:${PORT:-4174}) &
+node --env-file-if-exists=.env server.mjs

@@ -2,3 +2,7 @@
 __pycache__/
 node_modules/
 *.log
+.bloom/
+.env
+.env.*
+!.env.example
