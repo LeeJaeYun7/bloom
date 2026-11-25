@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { createOperatorConfig, inspectConfig } from '../operator-config.mjs';
-import { createInstagram } from '../instagram.mjs';
+import { createOperatorConfig, inspectConfig } from '../dist/operator-config.js';
+import { createInstagram } from '../dist/instagram.js';
 const values={INSTAGRAM_APP_ID:'1234567',INSTAGRAM_APP_SECRET:'operator-secret-fixture',INSTAGRAM_PUBLIC_ORIGIN:'https://auth.bloom.test',INSTAGRAM_API_VERSION:'v27.0',CLOUDINARY_CLOUD_NAME:'bloom-test',CLOUDINARY_API_KEY:'12345',CLOUDINARY_API_SECRET:'cloud-secret-fixture'};
 test('operator config persists encrypted secrets, masks reads, applies without restart and rejects stale updates',async t=>{
   const dir=await mkdtemp(path.join(tmpdir(),'bloom-operator-'));t.after(()=>rm(dir,{recursive:true,force:true}));

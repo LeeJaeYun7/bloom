@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { createInstagram } from '../instagram.mjs';
+import { createInstagram } from '../dist/instagram.js';
 
 const image='data:image/jpeg;base64,'+Buffer.from([255,216,255,224,0,0,255,217]).toString('base64');
 const workspace={creatives:[{id:'creative-1',name:'가방 광고',channel:'Instagram',format:'이미지 광고'}]};

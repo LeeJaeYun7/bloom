@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {directCreative} from '../director.mjs';
+import {directCreative} from '../dist/director.js';
 const creative={id:'x',brand:'Bloom',name:'광고',headline:'한 잔의 여유',caption:'오트 라떼',script:'기획안',channel:'Instagram',image:'data:image/jpeg;base64,YWJj',directorBrief:{product:'오트 라떼',audience:'20대 직장인',tone:'따뜻함',goal:'제품 소개'},conversation:[{role:'user',text:'20대 직장인을 위한 라떼 광고'},{role:'assistant',text:'따뜻한 광고로 기획하겠습니다.'}],executions:[{tool:'render_video',status:'ready',jobId:'actual-job',at:'2026-11-25'}]};
 const result={reply:'기존 타깃을 유지하고 10초로 수정했습니다.',action:'render',ready:true,audio:'mute',brief:creative.directorBrief,creative:{brand:'Bloom',name:'광고',headline:'짧은 여유',caption:'라떼',script:'수정된 기획',channel:'Instagram'},plan:{aspect:'9:16',duration:10,style:'minimal',motion:'still',scenes:[{title:'짧은 여유',body:'라떼 한 잔'},{title:'일상의 한 순간',body:'따뜻하게'},{title:'지금 만나보세요',body:'자세히 알아보기'}]}};
 function response(value){return{output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}]}}

@@ -1,21 +1,25 @@
 {
   "name": "bloom-marketing-prototype",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "브랜드 광고 제작 워크스페이스",
   "scripts": {
-    "start": "node --env-file-if-exists=.env server.mjs",
-    "check": "node --check app.js && node --check server.mjs && node --check instagram.mjs && node --check operator-config.mjs && node --check admin.js && node --check scripts/check-ops.mjs && node --check videos.mjs && node --check director.mjs && node --check batch-plans.mjs && node --check media-assets.mjs && node --check performance.mjs",
-    "test": "node --test test/*.test.mjs",
-    "ops:check": "node --env-file-if-exists=.env scripts/check-ops.mjs"
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.app.json && tsc -p tsconfig.admin.json",
+    "start": "npm run build && node --env-file-if-exists=.env dist/server.js",
+    "check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.admin.json --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "ops:check": "npm run build && node --env-file-if-exists=.env dist/scripts/check-ops.js"
   },
   "engines": {
     "node": ">=22.9"
   },
   "devDependencies": {
-    "linkedom": "^0.18.15"
+    "@types/node": "^26.6.10",
+    "linkedom": "^0.18.15",
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "ffmpeg-static": "^5.3.0"
-  }
+  },
+  "type": "module"
 }

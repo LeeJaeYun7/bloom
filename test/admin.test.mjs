@@ -5,7 +5,7 @@ import {readFile,mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {parseHTML} from 'linkedom';
-import {createOperatorConfig} from '../operator-config.mjs';
+import {createOperatorConfig} from '../dist/operator-config.js';
 
 test('operator screen saves config, previews callback, and clears secret inputs after saving',async t=>{
   const dir=await mkdtemp(path.join(tmpdir(),'bloom-admin-ui-'));t.after(()=>rm(dir,{recursive:true,force:true}));
@@ -18,7 +18,7 @@ test('operator screen saves config, previews callback, and clears secret inputs 
     try{return Response.json(options?.body?await config.update(JSON.parse(options.body),next=>{applied=next}):config.describe())}
     catch(error){return Response.json({error:error.message},{status:error.status||500})}
   }});
-  vm.runInContext(await readFile(new URL('../admin.js',import.meta.url),'utf8'),context);
+  vm.runInContext(await readFile(new URL('../dist/admin.js',import.meta.url),'utf8'),context);
   for(let i=0;i<5;i++)await new Promise(resolve=>setImmediate(resolve));
   assert.equal(form.hidden,false,document.querySelector('#errors').textContent);assert.match(document.querySelector('#readiness').textContent,/설정값이 필요/);
   const values={INSTAGRAM_APP_ID:'1234567',INSTAGRAM_APP_SECRET:'app-secret-fixture',INSTAGRAM_PUBLIC_ORIGIN:'https://auth.bloom.test',INSTAGRAM_API_VERSION:'v27.0',CLOUDINARY_CLOUD_NAME:'my-cloud',CLOUDINARY_API_KEY:'12345',CLOUDINARY_API_SECRET:'cloud-secret-fixture'};

@@ -1,12 +1,14 @@
+import type {AppError, Workspace} from './domain.js';
+interface InstagramOptions {env?: NodeJS.ProcessEnv; now?: ()=>number}
 import { createHash, createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile, writeFile, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
-import { inspectConfig } from './operator-config.mjs';
+import { inspectConfig } from './operator-config.js';
 
-const fail = (status, message) => Object.assign(new Error(message), { status });
+const fail = (status: number, message: string): AppError => Object.assign(new Error(message), { status });
 const active = new Set(['queued', 'uploading', 'processing', 'publishing']);
 
-export async function createInstagram(dataDir, options = {}) {
+export async function createInstagram(dataDir: string, options: InstagramOptions = {}) {
   const env = options.env || process.env;
   const now = options.now || Date.now;
   let version = env.INSTAGRAM_API_VERSION || 'v27.0';
@@ -133,7 +135,7 @@ export async function createInstagram(dataDir, options = {}) {
     }
     return data;
   }
-  async function graph(endpoint, key, payload) {
+  async function graph(endpoint: string, key: string, payload?: Record<string,unknown>) {
     try {
       return await external(`https://graph.instagram.com/${version}/${endpoint}`, {
         method: payload ? 'POST' : 'GET', headers: { Authorization: `Bearer ${key}`, ...(payload ? { 'Content-Type': 'application/json' } : {}) },

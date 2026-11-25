@@ -1,8 +1,8 @@
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { createOperatorConfig } from '../operator-config.mjs';
-const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+import { createOperatorConfig } from '../operator-config.js';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const dir=process.env.BLOOM_DATA_DIR||path.join(root,'.bloom');
 try{
   await mkdir(dir,{recursive:true});

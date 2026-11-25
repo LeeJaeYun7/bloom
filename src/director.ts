@@ -1,4 +1,5 @@
-import {validateVideoPlan} from './videos.mjs';
+import type {Creative, Brand, PublicVideoJob, CallModel, DirectorResult, ModelContent} from './domain.js';
+import {validateVideoPlan} from './videos.js';
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 const str=(maxLength)=>({type:'string',maxLength});
 const obj=properties=>({type:'object',additionalProperties:false,properties,required:Object.keys(properties)});
@@ -18,11 +19,11 @@ export function validateConversation(value){
   if(value===undefined)return;
   if(!Array.isArray(value)||value.length>100||value.some(item=>!item||!['user','assistant'].includes(item.role)||typeof item.text!=='string'||!item.text.trim()||item.text.length>3000))throw fail(400,'광고 대화 기록 형식을 확인해주세요.');
 }
-export async function directCreative({creative,brand,message,audioAvailable=false,lastVideo,learning=[],model,callModel}){
+export async function directCreative({creative,brand,message,audioAvailable=false,lastVideo,learning=[],model,callModel}: {creative: Creative; brand: Brand; message: string; audioAvailable?: boolean; lastVideo?: PublicVideoJob; learning?: unknown[]; model: string; callModel: CallModel}): Promise<DirectorResult>{
   if(typeof message!=='string'||!message.trim()||message.length>2000)throw fail(400,'제작 요청은 1~2,000자로 입력해주세요.');
   validateConversation(creative.conversation);
   const context={brand,performanceLearning:learning,brief:creative.directorBrief||{},creative:{brand:creative.brand,name:creative.name,prompt:creative.prompt,headline:creative.headline,caption:creative.caption,script:creative.script,channel:creative.channel,plan:creative.videoDraft||null},history:(creative.conversation||[]).slice(-40),message:message.trim(),executions:(creative.executions||[]).slice(-10),hasPhoto:!!creative.image,audioAvailable:!!audioAvailable,lastVideo:lastVideo?{status:lastVideo.status,plan:lastVideo.plan,hasAudio:lastVideo.hasAudio,error:lastVideo.error||null}:null};
-  const content=[{type:'input_text',text:JSON.stringify(context)}];
+  const content: ModelContent[]=[{type:'input_text',text:JSON.stringify(context)}];
   if(creative.image)content.push({type:'input_image',image_url:creative.image,detail:'low'});
   const response=await callModel('responses',{model,store:false,instructions,input:[{role:'user',content}],text:{format:{type:'json_schema',name:'creative_director',strict:true,schema:directorSchema}}});
   const text=response.output?.flatMap(item=>item.content||[]).filter(item=>item.type==='output_text').map(item=>item.text).join('');
@@ -32,6 +33,6 @@ export async function directCreative({creative,brand,message,audioAvailable=fals
   try{result.plan=validateVideoPlan(result.plan)}catch{throw fail(502,'영상 기획을 완성하지 못했습니다. 다시 요청해주세요.')}
   if(result.action==='render'&&(!creative.image||!result.ready)){result.action='update';result.reply='기획을 반영했습니다. 제품 사진과 기획을 준비한 뒤 영상으로 제작할 수 있습니다.'}
   return {reply:result.reply,action:result.action,ready:result.ready,audio:result.audio,
-    brief:Object.fromEntries(['product','audience','tone','goal'].map(key=>[key,result.brief[key]])),
-    creative:Object.fromEntries(['brand','name','headline','caption','script','channel'].map(key=>[key,result.creative[key]])),plan:result.plan};
+    brief:{product:result.brief.product,audience:result.brief.audience,tone:result.brief.tone,goal:result.brief.goal},
+    creative:{brand:result.creative.brand,name:result.creative.name,headline:result.creative.headline,caption:result.creative.caption,script:result.creative.script,channel:result.creative.channel},plan:result.plan};
 }

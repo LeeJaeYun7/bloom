@@ -4,14 +4,27 @@
 
 ## 실행
 
-Node.js 22.9 이상이 필요합니다. 처음 실행할 때 `npm ci`로 의존성과 MP4 렌더링용 FFmpeg를 설치합니다. npm 설치 과정에서 현재 OS용 FFmpeg 실행 파일을 다운로드합니다.
+Node.js 22.9 이상이 필요합니다. 애플리케이션·서버·운영 스크립트는 TypeScript로 작성합니다. 처음 실행할 때 `npm ci`로 컴파일러·타입 정의·의존성과 MP4 렌더링용 FFmpeg를 설치합니다. npm 설치 과정에서 현재 OS용 FFmpeg 실행 파일을 다운로드합니다.
 
 ```sh
 npm ci
 npm start
 ```
 
-[http://localhost:4174](http://localhost:4174)에 접속하세요. macOS에서는 `실행.command`를 더블클릭해도 됩니다. 이전 버전의 4173 포트는 정적 화면 서버이므로 새 주소를 사용하세요. 다른 포트는 `PORT=4180 npm start`로 지정합니다.
+`npm start`는 TypeScript를 먼저 빌드하고 `dist/server.js`를 실행합니다. 빌드 오류가 있으면 서버를 시작하지 않습니다. [http://localhost:4174](http://localhost:4174)에 접속하세요. macOS에서는 `실행.command`를 더블클릭해도 됩니다. 이전 버전의 4173 포트는 정적 화면 서버이므로 새 주소를 사용하세요. 다른 포트는 `PORT=4180 npm start`로 지정합니다.
+
+## TypeScript 개발 구조
+
+- `src/app.ts`, `src/admin.ts`: 브라우저 앱과 운영 설정 화면
+- `src/server.ts`: HTTP 서버와 API
+- `src/domain.ts`: 광고·영상·실험·성과와 API 응답의 공통 타입
+- `src/director.ts`, `src/batch-plans.ts`, `src/videos.ts`: AI 기획과 실제 렌더링
+- `src/performance.ts`, `src/instagram.ts`, `src/operator-config.ts`: 성과·게시·운영 설정
+- `src/scripts/check-ops.ts`: 운영 설정 검사
+
+`npm run check`는 서버와 두 브라우저 진입점을 타입 검사하고, `npm run build`는 실행용 JavaScript를 `dist/`에 만듭니다. 브라우저는 `/app.js`, `/admin.js`에서 빌드 결과를 받으며 TypeScript 원본과 서버 빌드 파일은 HTTP로 노출하지 않습니다. `dist/`는 Git에 포함하지 않습니다. 브라우저 코드를 수정한 뒤에는 빌드를 다시 실행하세요.
+
+브라우저 파일은 기존의 클래식 스크립트 방식으로 빌드하고 서버는 Node ESM으로 빌드합니다. 런타임 입력 검증은 유지하며 TypeScript 타입으로 대체하지 않습니다. 레거시 UI의 점진적 타입 전환을 위해 전체 프로젝트의 `strict` 모드는 아직 활성화하지 않았습니다. 테스트 하네스는 `.mjs`로 유지하고 실제 빌드 결과를 대상으로 검증합니다.
 
 ## 성과 실험과 학습
 

@@ -1,3 +1,4 @@
+import type {OperatorReport} from './domain.js';
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
 import { readFile, writeFile, rename } from 'node:fs/promises';
 import path from 'node:path';
@@ -5,7 +6,7 @@ import path from 'node:path';
 const fields = ['INSTAGRAM_APP_ID', 'INSTAGRAM_APP_SECRET', 'INSTAGRAM_PUBLIC_ORIGIN', 'INSTAGRAM_API_VERSION', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
 const secrets = new Set(['INSTAGRAM_APP_SECRET', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET']);
 const fail = (status, message) => Object.assign(new Error(message), { status });
-export function inspectConfig(values) {
+export function inspectConfig(values: NodeJS.ProcessEnv) {
   const checks = fields.map(name => {
     const value = values[name] || (name === 'INSTAGRAM_API_VERSION' ? 'v27.0' : '');
     let valid = !!value;
@@ -26,7 +27,7 @@ export function inspectConfig(values) {
   const origin = checks.find(item => item.name === 'INSTAGRAM_PUBLIC_ORIGIN').valid ? new URL(values.INSTAGRAM_PUBLIC_ORIGIN).origin : '';
   return { ready: checks.every(item => item.valid), checks, callbackUrl: origin ? origin + '/auth/instagram/callback' : null };
 }
-export async function createOperatorConfig(dataDir, env = process.env) {
+export async function createOperatorConfig(dataDir: string, env: NodeJS.ProcessEnv = process.env) {
   const file = path.join(dataDir, 'operator-config.enc');
   const keyFile = path.join(dataDir, 'operator-config.key');
   let key;
@@ -44,7 +45,7 @@ export async function createOperatorConfig(dataDir, env = process.env) {
   }
   if (key.length !== 32) throw Error('운영 설정 암호화 키를 확인해주세요.');
   const base = Object.fromEntries(fields.map(name => [name, env[name] || (name === 'INSTAGRAM_API_VERSION' ? 'v27.0' : '')]));
-  let overrides = {}, revision = randomBytes(16).toString('hex');
+  let overrides: Record<string,string> = {}, revision = randomBytes(16).toString('hex');
   try {
     const sealed = JSON.parse(await readFile(file, 'utf8'));
     const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(sealed.iv, 'base64'));
@@ -54,13 +55,13 @@ export async function createOperatorConfig(dataDir, env = process.env) {
     if(typeof sealed.revision==='string')revision=sealed.revision;
     overrides = Object.fromEntries(fields.filter(name => decoded[name] !== undefined).map(name => [name, decoded[name]]));
   } catch (error) { if (error.code !== 'ENOENT') throw Error('운영 설정을 복호화하지 못했습니다. 기존 암호화 키와 설정 파일을 확인해주세요.'); }
-  let queue = Promise.resolve();
+  let queue: Promise<unknown> = Promise.resolve();
   const snapshot = () => ({ ...base, ...overrides });
-  function describe() {
+  function describe(): OperatorReport {
     const values = snapshot();
     return { revision, ...inspectConfig(values), values: Object.fromEntries(fields.filter(name => !secrets.has(name)).map(name => [name, values[name]])), configuredSecrets: Object.fromEntries([...secrets].map(name => [name, !!values[name]])) };
   }
-  async function update(input, apply) {
+  async function update(input: {revision:string;values:Record<string,string>}, apply: (environment:NodeJS.ProcessEnv)=>void) {
     const task = queue.catch(() => {}).then(async () => {
       if (!input || input.revision !== revision) throw fail(409, '다른 운영 설정이 저장되었습니다. 화면을 새로고침해주세요.');
       if (!input.values || typeof input.values !== 'object' || Array.isArray(input.values) || Object.keys(input.values).some(name => !fields.includes(name))) throw fail(400, '지원하지 않는 설정 항목입니다.');

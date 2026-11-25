@@ -13,7 +13,7 @@ test('server saves actual work, rejects stale writes, and uses the AI contract',
   const dataDir = await mkdtemp(path.join(tmpdir(), 'bloom-test-')); const port = await freePort();
   let child;
   async function launch() {
-    child = spawn(process.execPath, ['--import', './test/fixtures/openai.mjs', 'server.mjs'], { env: { ...process.env, PORT: String(port), BLOOM_DATA_DIR: dataDir, OPENAI_API_KEY: '', INSTAGRAM_APP_ID:'12345',INSTAGRAM_APP_SECRET:'http-secret-fixture',INSTAGRAM_PUBLIC_ORIGIN:'https://auth.bloom.test',CLOUDINARY_CLOUD_NAME:'test',CLOUDINARY_API_KEY:'key-fixture',CLOUDINARY_API_SECRET:'secret-fixture' }, stdio: ['ignore','pipe','pipe'] });
+    child = spawn(process.execPath, ['--import', './test/fixtures/openai.mjs', 'dist/server.js'], { env: { ...process.env, PORT: String(port), BLOOM_DATA_DIR: dataDir, OPENAI_API_KEY: '', INSTAGRAM_APP_ID:'12345',INSTAGRAM_APP_SECRET:'http-secret-fixture',INSTAGRAM_PUBLIC_ORIGIN:'https://auth.bloom.test',CLOUDINARY_CLOUD_NAME:'test',CLOUDINARY_API_KEY:'key-fixture',CLOUDINARY_API_SECRET:'secret-fixture' }, stdio: ['ignore','pipe','pipe'] });
     await Promise.race([once(child.stdout,'data'), once(child,'exit').then(() => { throw Error('Server exited'); })]);
   }
   async function stop() { const exit = once(child,'exit'); child.kill(); await exit; }
@@ -26,6 +26,7 @@ test('server saves actual work, rejects stale writes, and uses the AI contract',
   assert.equal((await authFetch('/auth/instagram/start')).headers.get('location'),`http://localhost:${port}/?instagram=invalid#instagram`,'public start requires a handoff from the local app');
   assert.equal((await request('/api/instagram/connect',{})).status,404,'manual credential endpoint removed');
   assert.equal((await request('/api/instagram/login',{},'POST',{Origin:'https://evil.example'})).status,403);
+  const browserScript=await request('/app.js');assert.equal(browserScript.status,200);assert.match(browserScript.headers.get('content-type'),/javascript/);assert.doesNotMatch(await browserScript.text(),/import type|type Workspace =/);
   const adminPage=await request('/admin');assert.equal(adminPage.status,200);assert.match(adminPage.headers.get('content-type'),/text\/html/);
   assert.equal((await authFetch('/admin')).status,403);assert.equal((await authFetch('/api/admin/config')).status,403);
   const admin=await (await request('/api/admin/config')).json();assert.equal(admin.ready,true);assert.equal(JSON.stringify(admin).includes('http-secret-fixture'),false);
@@ -53,7 +54,7 @@ test('server saves actual work, rejects stale writes, and uses the AI contract',
   assert.equal((await request('/api/state',{state,revision:1},'PUT', {Origin:'https://evil.example'})).status,403);
   const writes=await Promise.all([request('/api/state',{state,revision:1},'PUT'), request('/api/state',{state,revision:1},'PUT')]);
   assert.deepEqual(writes.map(x=>x.status).sort(),[200,409]);
-  for(const url of ['/.bloom/workspace.json','/server.mjs','/.env','/package.json'])assert.equal((await request(url)).status,404);
+  for(const url of ['/.bloom/workspace.json','/src/server.ts','/dist/server.js','/src/domain.ts','/.env','/package.json'])assert.equal((await request(url)).status,404);
   assert.equal((await request('/api/settings',{apiKey:'sk-test-invalid',model:'gpt-4.1-mini'})).status,502);
   assert.equal((await (await request('/api/status')).json()).configured,false);
   assert.equal((await request('/api/settings',{apiKey:'sk-test-valid',model:'gpt-4.1-mini'})).status,200);

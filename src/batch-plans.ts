@@ -1,8 +1,9 @@
-import {validateVideoPlan} from './videos.mjs';
+import type {BatchInput, BatchResult, Brand, Creative, CallModel} from './domain.js';
+import {validateVideoPlan} from './videos.js';
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 const str=maxLength=>({type:'string',maxLength});
 const obj=properties=>({type:'object',additionalProperties:false,properties,required:Object.keys(properties)});
-export async function planBatch({input,brand,image,reference,learning=[],model,callModel}){
+export async function planBatch({input,brand,image,reference,learning=[],model,callModel}: {input: BatchInput; brand: Brand; image: string; reference?: Creative; learning?: unknown[]; model: string; callModel: CallModel}): Promise<BatchResult>{
   if(!Number.isInteger(input.count)||input.count<1||input.count>5)throw fail(400,'시안 수량은 1~5개로 선택해주세요.');
   if(!Number.isInteger(input.duration)||input.duration<6||input.duration>30||!['9:16','1:1'].includes(input.aspect))throw fail(400,'영상은 6~30초, 비율은 9:16 또는 1:1로 선택해주세요.');
   if(typeof input.product!=='string'||!input.product.trim()||input.product.length>500||typeof input.goal!=='string'||input.goal.length>300||typeof input.audience!=='string'||input.audience.length>300)throw fail(400,'제품 설명과 제작 목적을 확인해주세요.');

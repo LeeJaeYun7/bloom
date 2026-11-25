@@ -1,14 +1,17 @@
-import ffmpegStatic from 'ffmpeg-static';
-import {resolveCreativeImage} from './media-assets.mjs';
+import type {VideoPlan, VideoJob, PublicVideoJob, VideoRequest, Workspace} from './domain.js';
+interface VideoOptions {binary?: string; font?: string; onError?: (error: unknown)=>void}
+import {createRequire} from 'node:module';
+const ffmpegStatic: unknown = createRequire(import.meta.url)('ffmpeg-static');
+import {resolveCreativeImage} from './media-assets.js';
 import { spawn } from 'node:child_process';
 import { randomUUID, createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename, link, copyFile, rm, access } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-const root=path.dirname(fileURLToPath(import.meta.url));
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 const active=new Set(['queued','rendering']);
-export function validateVideoPlan(plan){
+export function validateVideoPlan(plan: any): VideoPlan{
   if(!plan||!['9:16','1:1'].includes(plan.aspect)||!Array.isArray(plan.scenes)||plan.scenes.length!==3)throw fail(400,'영상 비율과 3개 장면을 확인해주세요.');
   for(const scene of plan.scenes)if(!scene||typeof scene.title!=='string'||!scene.title.trim()||[...scene.title].length>42||typeof scene.body!=='string'||[...scene.body].length>60||/[\x00-\x08\x0b-\x1f]/.test(scene.title+scene.body))throw fail(400,'장면 제목은 1~42자, 보조 문구는 60자 이하로 입력해주세요.');
   const duration=plan.duration??15,style=plan.style??'warm',motion=plan.motion??'gentle';
@@ -29,7 +32,7 @@ function audioFormat(bytes){
   if(bytes.toString('ascii',0,3)==='ID3'||(bytes[0]===0xff&&(bytes[1]&0xe0)===0xe0))return 'mp3';
   throw fail(400,'MP3, WAV, M4A, AAC, OGG 또는 WebM 오디오 파일을 선택해주세요.');
 }
-function command(binary,args,{cwd,onProgress,duration=15}={}){
+function command(binary: string,args: string[],{cwd,onProgress,duration=15}: {cwd?: string; onProgress?: (progress: number)=>void; duration?: number}={}){
   return new Promise((resolve,reject)=>{
     const child=spawn(binary,args,{cwd,stdio:['ignore','pipe','pipe'],windowsHide:true});let stderr='',stdout='';
     const timer=setTimeout(()=>{child.kill('SIGKILL')},180000);
@@ -39,21 +42,21 @@ function command(binary,args,{cwd,onProgress,duration=15}={}){
     child.on('close',code=>{clearTimeout(timer);if(code===0)resolve(stderr);else reject(Object.assign(Error('FFmpeg 렌더링 실패'),{details:stderr,code}))});
   });
 }
-export async function createVideoService(dataDir,options={}){
+export async function createVideoService(dataDir: string,options: VideoOptions={}){
   const directory=path.join(dataDir,'videos');await mkdir(directory,{recursive:true});
   const index=path.join(dataDir,'video-jobs.json');
-  const binary=options.binary||process.env.FFMPEG_PATH||ffmpegStatic;
+  const binary=options.binary||process.env.FFMPEG_PATH||(typeof ffmpegStatic==='string'?ffmpegStatic:'');
   const font=options.font||process.env.BLOOM_VIDEO_FONT||path.join(root,'assets/fonts/NotoSansKR.ttf');
   let available=true;
   try{await access(binary);await access(font)}catch{available=false}
-  let jobs=[];try{jobs=JSON.parse(await readFile(index,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
+  let jobs: VideoJob[]=[];try{jobs=JSON.parse(await readFile(index,'utf8'))}catch(error){if(error.code!=='ENOENT')throw error}
   for(const job of jobs)if(active.has(job.status)){job.status='failed';job.error='서버가 재시작되어 영상 제작이 중단되었습니다. 다시 제작해주세요.';await rm(path.join(directory,job.id),{recursive:true,force:true})}
   let queue=Promise.resolve(),working=false,closed=false;const waiting=[];
   const exclusive=fn=>{const task=queue.catch(()=>{}).then(fn);queue=task;return task};
   async function save(){await writeFile(index+'.tmp',JSON.stringify(jobs),{mode:0o600});await rename(index+'.tmp',index)}
   await save();
-  const publicJob=job=>({...job,fileUrl:job.status==='ready'?`/api/videos/${job.id}/file`:null,posterUrl:job.status==='ready'?`/api/videos/${job.id}/poster`:null});
-  async function update(job,changes){return exclusive(async()=>{Object.assign(job,changes,{updatedAt:new Date().toISOString()});await save()})}
+  const publicJob=(job: VideoJob): PublicVideoJob=>({...job,fileUrl:job.status==='ready'?`/api/videos/${job.id}/file`:null,posterUrl:job.status==='ready'?`/api/videos/${job.id}/poster`:null});
+  async function update(job: VideoJob,changes: Partial<VideoJob>){return exclusive(async()=>{Object.assign(job,changes,{updatedAt:new Date().toISOString()});await save()})}
   async function render(job,input){
     const folder=path.join(directory,job.id);
     try{
@@ -88,7 +91,7 @@ export async function createVideoService(dataDir,options={}){
     }catch(error){await rm(folder,{recursive:true,force:true}).catch(()=>{});await update(job,{status:'failed',error:input.audio?'영상 제작에 실패했습니다. 사진과 오디오 파일이 정상인지 확인해주세요.':'영상 제작에 실패했습니다. 제품 사진을 다시 선택하고 시도해주세요.'}).catch(()=>{});if(options.onError)options.onError(error)}
   }
   async function drain(){if(working||closed)return;working=true;try{while(waiting.length&&!closed){const next=waiting.shift();await render(next.job,next.input)}}finally{working=false}}
-  function prepare(input,workspace){
+  function prepare(input: VideoRequest,workspace: Workspace | null){
     if(!available)throw fail(503,'영상 렌더러를 사용할 수 없습니다. npm ci로 FFmpeg를 설치해주세요.');
     const creative=workspace?.creatives.find(item=>item.id===input.creativeId);
     if(!creative)throw fail(400,'광고 작업을 먼저 저장해주세요.');
@@ -101,7 +104,7 @@ export async function createVideoService(dataDir,options={}){
     const fingerprint=createHash('sha256').update(JSON.stringify({renderer:'photo-ad-v4',creativeId:creative.id,plan,brand:creative.brand,color})).update(photo).update(audio||'').digest('hex');
     return {creative,plan,fingerprint,input:{photo,photoType:image.match(/^data:image\/(jpeg|png|webp)/)[1].replace('jpeg','jpg'),audio,audioType,brand:creative.brand,color:/^#[0-9a-f]{6}$/i.test(color)?color:'#7355df'}};
   }
-  async function enqueue(inputs,workspace){
+  async function enqueue(inputs: VideoRequest[],workspace: Workspace | null){
     const prepared=inputs.map(input=>prepare(input,workspace));
     return exclusive(async()=>{
       const existing=prepared.map(item=>jobs.find(job=>job.fingerprint===item.fingerprint&&job.status!=='failed'));
@@ -118,11 +121,11 @@ export async function createVideoService(dataDir,options={}){
       waiting.push(...fresh);queueMicrotask(()=>{void drain()});return output.map(publicJob);
     });
   }
-  async function create(input,workspace){return (await enqueue([input],workspace))[0]}
-  async function createBatch(input,workspace){
+  async function create(input: VideoRequest,workspace: Workspace | null){return (await enqueue([input],workspace))[0]}
+  async function createBatch(input: {creativeIds: string[]},workspace: Workspace | null){
     if(!Array.isArray(input.creativeIds)||input.creativeIds.length<1||input.creativeIds.length>5||new Set(input.creativeIds).size!==input.creativeIds.length)throw fail(400,'일괄 제작할 시안 1~5개를 선택해주세요.');
     const inputs=input.creativeIds.map(id=>{const creative=workspace?.creatives.find(item=>item.id===id);if(!creative)throw fail(400,'저장된 시안을 찾을 수 없습니다.');return {creativeId:id,plan:creative.videoDraft}});
     return {jobs:await enqueue(inputs,workspace)};
   }
-  return {status:()=>({available,duration:15,minDuration:6,maxDuration:30,aspects:['9:16','1:1']}),create,createBatch,list:()=>jobs.slice(0,100).map(publicJob),file(id,poster=false){const job=jobs.find(item=>item.id===id);if(!job||job.status!=='ready')throw fail(404,'완성된 영상을 찾을 수 없습니다.');return path.join(directory,job.id,poster?'poster.jpg':'output.mp4')},close(){closed=true}};
+  return {status:()=>({available,duration:15,minDuration:6,maxDuration:30,aspects:['9:16','1:1']}),create,createBatch,list:()=>jobs.slice(0,100).map(publicJob),file(id: string,poster=false){const job=jobs.find(item=>item.id===id);if(!job||job.status!=='ready')throw fail(404,'완성된 영상을 찾을 수 없습니다.');return path.join(directory,job.id,poster?'poster.jpg':'output.mp4')},close(){closed=true}};
 }

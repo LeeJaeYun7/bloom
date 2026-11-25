@@ -1,29 +1,30 @@
+import type {WorkspaceRecord, AppError} from './domain.js';
 import http from 'node:http';
-import {validatePerformance, mutatePerformance, performanceReport, performanceLearning} from './performance.mjs';
-import {planBatch} from './batch-plans.mjs';
-import {resolveCreativeImage} from './media-assets.mjs';
-import { directCreative, validateConversation } from './director.mjs';
+import {validatePerformance, mutatePerformance, performanceReport, performanceLearning} from './performance.js';
+import {planBatch} from './batch-plans.js';
+import {resolveCreativeImage} from './media-assets.js';
+import { directCreative, validateConversation } from './director.js';
 import { createReadStream } from 'node:fs';
-import { createVideoService, validateVideoPlan } from './videos.mjs';
-import { createOperatorConfig } from './operator-config.mjs';
-import { createInstagram } from './instagram.mjs';
+import { createVideoService, validateVideoPlan } from './videos.js';
+import { createOperatorConfig } from './operator-config.js';
+import { createInstagram } from './instagram.js';
 import { readFile, writeFile, mkdir, rename, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-const root = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dataDir = process.env.BLOOM_DATA_DIR || path.join(root, '.bloom');
 const port = Number(process.env.PORT || 4174);
 let apiKey = process.env.OPENAI_API_KEY || '';
 let model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
-let db = { revision: 0, state: null };
+let db: WorkspaceRecord = { revision: 0, state: null };
 await mkdir(dataDir, { recursive: true });
 try { db = JSON.parse(await readFile(path.join(dataDir, 'workspace.json'), 'utf8')); }
 catch (error) { if (error.code !== 'ENOENT') throw error; }
 const videos = await createVideoService(dataDir);
 const operator = await createOperatorConfig(dataDir);
 const instagram = await createInstagram(dataDir, { env: operator.environment() });
-let writing = Promise.resolve();
+let writing: Promise<unknown> = Promise.resolve();
 const fail = (status, message) => Object.assign(new Error(message), { status });
 function json(res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -127,7 +128,7 @@ const server = http.createServer(async (req, res) => {
     if (isAuthPath) {
       if (req.method !== 'GET') throw fail(405, '지원하지 않는 요청입니다.');
       const resultUrl = outcome => `http://localhost:${port}/?instagram=${outcome}#instagram`;
-      const redirect = (location, cookie) => {
+      const redirect = (location: string, cookie?: string) => {
         res.writeHead(302, { Location: location, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', ...(cookie ? { 'Set-Cookie': cookie } : {}) }); res.end();
       };
       if (url.pathname.endsWith('/start')) {
@@ -246,7 +247,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') throw fail(405, '지원하지 않는 요청입니다.');
     const requested = decodeURIComponent(url.pathname);
     if (!['/', '/index.html', '/app.js', '/style.css', '/admin', '/admin.js', '/admin.css'].includes(requested) && !/^\/assets\/[a-zA-Z0-9_-]+\.(jpg|png|webp)$/.test(requested)) throw fail(404, '파일을 찾을 수 없습니다.');
-    const file = path.join(root, requested === '/' ? 'index.html' : requested === '/admin' ? 'admin.html' : requested);
+    const file = ['/app.js','/admin.js'].includes(requested) ? path.join(root,'dist',requested.slice(1)) : path.join(root, requested === '/' ? 'index.html' : requested === '/admin' ? 'admin.html' : requested);
     const bytes = await readFile(file);
     const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
     res.writeHead(200, { 'Content-Type': `${mime[path.extname(file)]}; charset=utf-8`, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin' });
@@ -257,4 +258,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 server.listen(port, '127.0.0.1', () => console.log(`Bloom: http://localhost:${port}`));
-server.on('error', error => { console.error(error.code === 'EADDRINUSE' ? `${port} 포트가 사용 중입니다. PORT 환경 변수로 다른 포트를 지정해주세요.` : error.message); process.exitCode = 1; });
+server.on('error', (error: AppError) => { console.error(error.code === 'EADDRINUSE' ? `${port} 포트가 사용 중입니다. PORT 환경 변수로 다른 포트를 지정해주세요.` : error.message); process.exitCode = 1; });

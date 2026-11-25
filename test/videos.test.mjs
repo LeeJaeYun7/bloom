@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import ffmpeg from 'ffmpeg-static';
-import {createVideoService} from '../videos.mjs';
+import {createVideoService} from '../dist/videos.js';
 const plan={aspect:'9:16',scenes:[{title:"작은 여유: 오늘's 20%",body:'한글 자막을 포함한 광고 영상'},{title:'제품을 만나는 시간',body:'내 취향으로 즐기는 한 잔'},{title:'다음 이야기를 시작하세요',body:'지금 자세히 알아보기'}]};
 function wav(){const samples=48000,buffer=Buffer.alloc(44+samples*2);buffer.write('RIFF');buffer.writeUInt32LE(buffer.length-8,4);buffer.write('WAVEfmt ',8);buffer.writeUInt32LE(16,16);buffer.writeUInt16LE(1,20);buffer.writeUInt16LE(1,22);buffer.writeUInt32LE(48000,24);buffer.writeUInt32LE(96000,28);buffer.writeUInt16LE(2,32);buffer.writeUInt16LE(16,34);buffer.write('data',36);buffer.writeUInt32LE(samples*2,40);for(let i=0;i<samples;i++)buffer.writeInt16LE(Math.round(Math.sin(i*440*2*Math.PI/48000)*2000),44+i*2);return buffer}
 async function settle(service,id){for(let i=0;i<300;i++){const job=service.list().find(item=>item.id===id);if(['ready','failed'].includes(job.status))return job;await new Promise(resolve=>setTimeout(resolve,100))}throw Error('Video render timed out')}

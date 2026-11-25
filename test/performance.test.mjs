@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mutatePerformance,performanceReport,performanceLearning,parsePerformanceCsv,wilson} from '../performance.mjs';
+import {mutatePerformance,performanceReport,performanceLearning,parsePerformanceCsv,wilson} from '../dist/performance.js';
 const now='2026-11-25T01:00:00Z';
 const base=()=>({brand:{name:'Bloom'},creatives:[{id:'c1',brand:'Bloom',name:'라떼 광고',headline:'아침의 여유',caption:'라떼',script:'대본',channel:'Instagram',format:'15초 광고 영상',variant:0,imageVersion:'photo-v1'}],campaigns:[]});
 const plan={name:'아침 광고 실험',product:'oat-latte',audience:'국내 신규 고객',channel:'Instagram',landingUrl:'https://example.com/latte',attribution:'7일 클릭 / 중복 제거 주문',marginRate:.5,targetCpa:10000,maxSpend:100000,startDate:'2026-11-01',endDate:'2026-11-05',creativeIds:['c1'],hypothesis:'아침 메시지의 구매 전환을 시험한다'};

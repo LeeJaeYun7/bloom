@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {planBatch} from '../batch-plans.mjs';
+import {planBatch} from '../dist/batch-plans.js';
 const input={product:'오트 라떼',goal:'제품 소개',audience:'20대 직장인',duration:15,count:5,aspect:'9:16'};
 const variants=Array.from({length:5},(_,i)=>({angle:'관점 '+i,hypothesis:'시험할 가설 '+i,name:'광고 '+i,headline:'제목 '+i,caption:'보조 문구',script:'제작 원고',style:['warm','bold','minimal'][i%3],motion:'gentle',scenes:[{title:'도입 '+i,body:'제품 소개'},{title:'메시지 '+i,body:'브랜드의 매력'},{title:'행동 유도',body:'지금 만나보세요'}]}));
 const image='data:image/jpeg;base64,YWJj';

@@ -1,5 +1,5 @@
 import { test } from 'node:test';
-import {mutatePerformance,performanceReport} from '../performance.mjs';
+import {mutatePerformance,performanceReport} from '../dist/performance.js';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
@@ -51,7 +51,7 @@ async function setup({connected=false,ready=true,outcome=''}={}) {
   class FileReader {readAsDataURL(){this.result='data:image/jpeg;base64,YWJj';queueMicrotask(()=>this.onload?.())}}
   const downloads=[],navigations=[];
   const context=vm.createContext({document,window:{addEventListener(){},scrollTo(){}},location:{hash:'',pathname:'/',search:outcome?'?instagram='+outcome:'',assign:url=>navigations.push(url)},localStorage:{getItem:()=>null},URLSearchParams,structuredClone,fetch,FormData,crypto:webcrypto,Response,Blob,Image,FileReader,URL:{createObjectURL:blob=>{downloads.push(blob);return 'blob:fixture'},revokeObjectURL(){}},setTimeout:()=>1,clearTimeout(){},console});
-  vm.runInContext(await readFile(new URL('../app.js',import.meta.url),'utf8'),context);
+  vm.runInContext(await readFile(new URL('../dist/app.js',import.meta.url),'utf8'),context);
   const flush=async()=>{for(let i=0;i<10;i++)await new Promise(resolve=>setImmediate(resolve))};await flush();
   const click=async selector=>{const el=document.querySelector(selector);assert.ok(el,selector);await el.onclick();await flush()};
   const submit=async selector=>{const el=document.querySelector(selector);await el.onsubmit({preventDefault(){},target:el});await flush()};
